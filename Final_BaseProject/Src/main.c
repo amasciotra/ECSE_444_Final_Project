@@ -73,6 +73,7 @@ osThreadId defaultTaskHandle;
 /* Private variables ---------------------------------------------------------*/
 int tim3_flag = 0;
 int flag = 0;
+int flag_done = 0;
 uint8_t data;
 int freqc4 = 261; //frequency of the sine wave 
 int freqg4 = 392;
@@ -88,6 +89,15 @@ int i;
 float a11 = 0.5, a12 = 0.5, a21= 0.5, a22 = 0.5;
 uint8_t x1, x2;
 
+
+//fast ica matrix variables 
+arm_matrix_instance_f32 m1;  //mixted signal 1 
+arm_matrix_instance_f32 m2;  //mixted signal 2 
+arm_matrix_instance_f32 u1;  // unmixted signal 1
+arm_matrix_instance_f32 u2;  // unmixed signal 2 
+float32_t mean_m1;
+float32_t mean_m2;
+
 // 0x90000000 to 0x9FFFFFFF
 __IO uint8_t* qspi_base_address = (__IO uint8_t*) 0x90000000;
 uint8_t testes, testes2;
@@ -101,7 +111,7 @@ static void MX_DFSDM1_Init(void);
 static void MX_DAC1_Init(void);
 void StartDefaultTask(void const * argument);
 static void MX_QUADSPI_Init(void);
-
+void fast_ica(volatile uint8_t* data1,volatile uint8_t* data2);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -240,11 +250,12 @@ int main(void)
 		testes = *(qspi_base_address);
 		BSP_QSPI_Read(&testes2,0,1);
 		
-		if(flag == 1){
+		if(flag == 1 && flag_done ==0){
 			flag =0;
 			
 			if(sample_time - 1 == sampling_time*2){
-				sample_time = 0;
+				//sample_time = 0;
+				flag_done = 1; 
 			}
 			
 				
@@ -265,6 +276,11 @@ int main(void)
 		
 			
 		}
+		else if(flag_done ==1)
+		{
+			fast_ica(qspi_base_address, qspi_base_address+32000);
+		
+		}
 		
 		
 		
@@ -273,7 +289,7 @@ int main(void)
   /* USER CODE END 3 */
 }
 /////FastICA algorithm /////
-uint8_t * fast_ica(uint8_t * data1, uint8_t * data2){
+void fast_ica(volatile uint8_t* data1, volatile uint8_t* data2){
 	
 	// initialize the mixed signal matrices
 	 arm_mat_init_f32(&m1, 1, 16000, (float32_t *)data1);
@@ -283,8 +299,7 @@ uint8_t * fast_ica(uint8_t * data1, uint8_t * data2){
 	arm_mean_f32((float32_t *)data1, 1600, &mean_m1);
 	arm_mean_f32((float32_t *)data2, 1600, &mean_m1);
 	
-	
-	
+	arm_mat_add_f32(&m1, &m2, &u1); 
 	
 }
 
