@@ -87,6 +87,10 @@ int b;
 int i;
 float a11 = 0.5, a12 = 0.5, a21= 0.5, a22 = 0.5;
 uint8_t x1, x2;
+
+// 0x90000000 to 0x9FFFFFFF
+__IO uint8_t* qspi_base_address = (__IO uint8_t*) 0x90000000;
+uint8_t testes, testes2;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -225,12 +229,17 @@ int main(void)
 		BSP_QSPI_Write(&data, i+(sampling_time*2), 1);
 		
 	}
+	BSP_QSPI_EnableMemoryMappedMode();
 	
 	while (1)
   {
   /* USER CODE END WHILE */
 		
 		// If interrupted by systick
+		
+		testes = *(qspi_base_address);
+		BSP_QSPI_Read(&testes2,0,1);
+		
 		if(flag == 1){
 			flag =0;
 			
@@ -239,16 +248,18 @@ int main(void)
 			}
 			
 				
-				BSP_QSPI_Read(&receive_sigc4,sample_time,1);
-				BSP_QSPI_Read(&receive_sigg4,sample_time + 32000, 1);
+//				BSP_QSPI_Read(&receive_sigc4,sample_time,1);
+//				BSP_QSPI_Read(&receive_sigg4,sample_time + 32000, 1);
+			receive_sigc4 = *(qspi_base_address + sample_time);
+			receive_sigg4 = *(qspi_base_address + sample_time + 32000);
 				// Write that value to the DAC
 			
 			
-				x1 = a11*receive_sigc4 + a12*receive_sigg4;
-				x2 = a21*receive_sigc4 + a22*receive_sigg4;
-				HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R, x1);
-				HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_8B_R, x2);
-				sample_time++;
+			x1 = a11*receive_sigc4 + a12*receive_sigg4;
+			x2 = a21*receive_sigc4 + a22*receive_sigg4;
+			HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R, x1);
+			HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_8B_R, x2);
+			sample_time++;
 			
 		  //BSP_QSPI_Read(&testreceive , 0x90000000, 1);
 		
