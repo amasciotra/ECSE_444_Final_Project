@@ -204,7 +204,7 @@ int main(void)
 		
 		// Shift value of angle to get only positives
 		sine_sample = sine_sample + 1;
-		// Map to 12bits by multiply by 2048, subtract 1
+		// Map to 8bits by multiply by 2048, subtract 1
 		sine_sample = ((sine_sample * 256/2) - 1);
 		data = sine_sample;
 		BSP_QSPI_Write(&data, i, 1);
