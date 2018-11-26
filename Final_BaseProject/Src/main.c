@@ -272,6 +272,21 @@ int main(void)
   }
   /* USER CODE END 3 */
 }
+/////FastICA algorithm /////
+uint8_t * fast_ica(uint8_t * data1, uint8_t * data2){
+	
+	// initialize the mixed signal matrices
+	 arm_mat_init_f32(&m1, 1, 16000, (float32_t *)data1);
+	 arm_mat_init_f32(&m2, 2, 16000, (float32_t *)data2);
+	
+	//compute mean and center the matrix. 
+	arm_mean_f32((float32_t *)data1, 1600, &mean_m1);
+	arm_mean_f32((float32_t *)data2, 1600, &mean_m1);
+	
+	
+	
+	
+}
 
 /**
   * @brief System Clock Configuration
