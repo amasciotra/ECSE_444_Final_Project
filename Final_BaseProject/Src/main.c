@@ -98,6 +98,9 @@ arm_matrix_instance_f32 u2;  // unmixed signal 2
 float32_t mean_m1;
 float32_t mean_m2;
 
+uint8_t test1 [16000]; 
+uint8_t test2 [16000]; 
+
 // 0x90000000 to 0x9FFFFFFF
 __IO uint8_t* qspi_base_address = (__IO uint8_t*) 0x90000000;
 uint8_t testes, testes2;
@@ -171,7 +174,8 @@ int main(void)
 	HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
 	
 	BSP_QSPI_Init();   // init the qspi memory
-	BSP_QSPI_Erase_Chip();
+	BSP_QSPI_EnableMemoryMappedMode();
+	//BSP_QSPI_Erase_Chip();
  
  /* USER CODE END 2 */
 
@@ -221,7 +225,8 @@ int main(void)
 		// Map to 12bits by multiply by 2048, subtract 1
 		sine_sample = ((sine_sample * 256/2) - 1);
 		data = sine_sample;
-		BSP_QSPI_Write(&data, i, 1);
+		test1[i] = data;
+		//BSP_QSPI_Write(&data, i, 1);
 		
 	}
 	for(i = 0; i < sampling_time*2; i++){
@@ -236,10 +241,11 @@ int main(void)
 		// Map to 12bits by multiply by 2048, subtract 1
 		sine_sample = ((sine_sample * 256/2) - 1);
 		data = sine_sample;
-		BSP_QSPI_Write(&data, i+(sampling_time*2), 1);
+		test2[i] = data;
+		//BSP_QSPI_Write(&data, i+(sampling_time*2), 1);
 		
 	}
-	BSP_QSPI_EnableMemoryMappedMode();
+
 	
 	while (1)
   {
@@ -247,24 +253,25 @@ int main(void)
 		
 		// If interrupted by systick
 		
-		testes = *(qspi_base_address);
-		BSP_QSPI_Read(&testes2,0,1);
+		//testes = *(qspi_base_address);
+		//BSP_QSPI_Read(&testes2,0,1);
 		
-		if(flag == 1 && flag_done ==0){
+		if(flag == 1 ){//&& flag_done ==0){
 			flag =0;
 			
 			if(sample_time - 1 == sampling_time*2){
-				//sample_time = 0;
-				flag_done = 1; 
+				sample_time = 0;
+				//flag_done = 1; 
 			}
 			
 				
 //				BSP_QSPI_Read(&receive_sigc4,sample_time,1);
 //				BSP_QSPI_Read(&receive_sigg4,sample_time + 32000, 1);
-			receive_sigc4 = *(qspi_base_address + sample_time);
-			receive_sigg4 = *(qspi_base_address + sample_time + 32000);
+			//receive_sigc4 = *(qspi_base_address + sample_time);
+			//receive_sigg4 = *(qspi_base_address + sample_time + 32000);
 				// Write that value to the DAC
-			
+			receive_sigc4 = test1[sample_time];
+			receive_sigg4 = test2[sample_time];
 			
 			x1 = a11*receive_sigc4 + a12*receive_sigg4;
 			x2 = a21*receive_sigc4 + a22*receive_sigg4;
@@ -276,13 +283,13 @@ int main(void)
 		
 			
 		}
-		else if(flag_done ==1)
+		/* else if(flag_done ==1)
 		{
 			fast_ica(qspi_base_address, qspi_base_address+32000);
 		
 		}
 		
-		
+		*/
 		
   /* USER CODE BEGIN 3 */
   }
@@ -293,7 +300,7 @@ void fast_ica(volatile uint8_t* data1, volatile uint8_t* data2){
 	
 	// initialize the mixed signal matrices
 	 arm_mat_init_f32(&m1, 1, 16000, (float32_t *)data1);
-	 arm_mat_init_f32(&m2, 2, 16000, (float32_t *)data2);
+	 arm_mat_init_f32(&m2, 1, 16000, (float32_t *)data2);
 	
 	//compute mean and center the matrix. 
 	arm_mean_f32((float32_t *)data1, 1600, &mean_m1);
