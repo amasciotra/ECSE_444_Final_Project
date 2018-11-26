@@ -87,6 +87,16 @@ int b;
 int i;
 float a11 = 0.5, a12 = 0.5, a21= 0.5, a22 = 0.5;
 uint8_t x1, x2;
+
+
+//fast ica matrix variables 
+arm_matrix_instance_f32 m1;  //mixted signal 1 
+arm_matrix_instance_f32 m2;  //mixted signal 2 
+arm_matrix_instance_f32 u1;  // unmixted signal 1
+arm_matrix_instance_f32 u2;  // unmixed signal 2 
+float32_t mean_m1;
+float32_t mean_m2;
+ 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -252,7 +262,6 @@ int main(void)
 			
 		  //BSP_QSPI_Read(&testreceive , 0x90000000, 1);
 		
-			
 		}
 		
 		
@@ -260,6 +269,23 @@ int main(void)
   /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
+}
+
+
+/////FastICA algorithm /////
+uint8_t * fast_ica(uint8_t * data1, uint8_t * data2){
+	
+	// initialize the mixed signal matrices
+	 arm_mat_init_f32(&m1, 1, 16000, (float32_t *)data1);
+	 arm_mat_init_f32(&m2, 2, 16000, (float32_t *)data2);
+	
+	//compute mean and center the matrix. 
+	arm_mean_f32((float32_t *)data1, 1600, &mean_m1);
+	arm_mean_f32((float32_t *)data2, 1600, &mean_m1);
+	
+	
+	
+	
 }
 
 /**
