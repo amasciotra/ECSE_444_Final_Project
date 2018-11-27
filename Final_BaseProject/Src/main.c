@@ -89,6 +89,7 @@ int i;
 float a11 = 0.5, a12 = 0.5, a21= 0.5, a22 = 0.5;
 uint8_t x1, x2;
 
+arm_status lol; 
 
 //fast ica matrix variables 
 arm_matrix_instance_f32 m1;  //mixted signal 1 
@@ -98,12 +99,13 @@ arm_matrix_instance_f32 u2;  // unmixed signal 2
 float32_t mean_m1;
 float32_t mean_m2;
 
-uint8_t test1 [16000]; 
-uint8_t test2 [16000]; 
+ uint8_t test1 [1000]; 
+ uint8_t test2 [1000]; 
+ uint8_t test3 [1000]; 
 
 // 0x90000000 to 0x9FFFFFFF
-__IO uint8_t* qspi_base_address = (__IO uint8_t*) 0x90000000;
-uint8_t testes, testes2;
+//__IO uint8_t* qspi_base_address = (__IO uint8_t*) 0x90000000;
+//uint8_t testes, testes2;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -113,14 +115,14 @@ static void MX_USART1_UART_Init(void);
 static void MX_DFSDM1_Init(void);
 static void MX_DAC1_Init(void);
 void StartDefaultTask(void const * argument);
-static void MX_QUADSPI_Init(void);
-void fast_ica(volatile uint8_t* data1,volatile uint8_t* data2);
+//static void MX_QUADSPI_Init(void);
+
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 
 /* USER CODE END PFP */
-
+//void fast_ica(uint8_t* data1, uint8_t* data2);
 /* USER CODE BEGIN 0 */
 
 int fputc(int ch, FILE *f) {
@@ -167,15 +169,17 @@ int main(void)
   MX_USART1_UART_Init();
   MX_DFSDM1_Init();
   MX_DAC1_Init();
-	MX_QUADSPI_Init();
+	//MX_QUADSPI_Init();
 
   /* USER CODE BEGIN 2 */
 	HAL_DAC_Start(&hdac1, DAC_CHANNEL_1);
 	HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
 	
 	BSP_QSPI_Init();   // init the qspi memory
-	BSP_QSPI_EnableMemoryMappedMode();
-	//BSP_QSPI_Erase_Chip();
+	
+  //uint8_t test1 [16000]; 
+  //uint8_t test2 [16000]; 
+	BSP_QSPI_Erase_Chip();
  
  /* USER CODE END 2 */
 
@@ -225,8 +229,8 @@ int main(void)
 		// Map to 12bits by multiply by 2048, subtract 1
 		sine_sample = ((sine_sample * 256/2) - 1);
 		data = sine_sample;
-		test1[i] = data;
-		//BSP_QSPI_Write(&data, i, 1);
+		//test1[i] = data;
+		BSP_QSPI_Write(&data, i, 1);
 		
 	}
 	for(i = 0; i < sampling_time*2; i++){
@@ -241,12 +245,12 @@ int main(void)
 		// Map to 12bits by multiply by 2048, subtract 1
 		sine_sample = ((sine_sample * 256/2) - 1);
 		data = sine_sample;
-		test2[i] = data;
-		//BSP_QSPI_Write(&data, i+(sampling_time*2), 1);
+		//test2[i] = data;
+		BSP_QSPI_Write(&data, i+(sampling_time*2), 1);
 		
 	}
 
-	
+	//BSP_QSPI_EnableMemoryMappedMode();
 	while (1)
   {
   /* USER CODE END WHILE */
@@ -256,25 +260,27 @@ int main(void)
 		//testes = *(qspi_base_address);
 		//BSP_QSPI_Read(&testes2,0,1);
 		
-		if(flag == 1 ){//&& flag_done ==0){
+		if(flag == 1 && flag_done ==0){
 			flag =0;
 			
-			if(sample_time - 1 == sampling_time*2){
+			if(sample_time == 999){//- 1 == sampling_time*2){
 				sample_time = 0;
-				//flag_done = 1; 
+				flag_done = 1; 
 			}
 			
 				
-//				BSP_QSPI_Read(&receive_sigc4,sample_time,1);
-//				BSP_QSPI_Read(&receive_sigg4,sample_time + 32000, 1);
+				BSP_QSPI_Read(&receive_sigc4,sample_time,1);
+				BSP_QSPI_Read(&receive_sigg4,sample_time + 32000, 1);
 			//receive_sigc4 = *(qspi_base_address + sample_time);
 			//receive_sigg4 = *(qspi_base_address + sample_time + 32000);
-				// Write that value to the DAC
-			receive_sigc4 = test1[sample_time];
-			receive_sigg4 = test2[sample_time];
+		 // Write that value to the DAC
+			//receive_sigc4 = test1[sample_time];
+			//receive_sigg4 = test2[sample_time];
 			
 			x1 = a11*receive_sigc4 + a12*receive_sigg4;
+			test1[sample_time] = x1;
 			x2 = a21*receive_sigc4 + a22*receive_sigg4;
+			test2[sample_time] = x2;
 			HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R, x1);
 			HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_8B_R, x2);
 			sample_time++;
@@ -283,32 +289,38 @@ int main(void)
 		
 			
 		}
-		/* else if(flag_done ==1)
+		 else if(flag_done ==1)
 		{
-			fast_ica(qspi_base_address, qspi_base_address+32000);
-		
+	   
+			 arm_mat_init_f32(&m1, 1, 1000, (float32_t *)test1);
+     	 arm_mat_init_f32(&m2, 1, 1000, (float32_t *)test2);
+			 arm_mat_init_f32(&u1, 1000, 1, (float32_t *)test3);
+			 lol = arm_mat_inverse_f32(&m1, &u1);
+			
 		}
 		
-		*/
+		
 		
   /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
 /////FastICA algorithm /////
-void fast_ica(volatile uint8_t* data1, volatile uint8_t* data2){
-	
-	// initialize the mixed signal matrices
-	 arm_mat_init_f32(&m1, 1, 16000, (float32_t *)data1);
-	 arm_mat_init_f32(&m2, 1, 16000, (float32_t *)data2);
-	
-	//compute mean and center the matrix. 
-	arm_mean_f32((float32_t *)data1, 1600, &mean_m1);
-	arm_mean_f32((float32_t *)data2, 1600, &mean_m1);
-	
-	arm_mat_add_f32(&m1, &m2, &u1); 
-	
-}
+//void fast_ica(uint8_t* data1, uint8_t* data2){
+//	
+//	// initialize the mixed signal matrices
+//	 arm_mat_init_f32(&m1, 1, 1000, (float32_t *)data1);
+//	 arm_mat_init_f32(&m2, 1, 1000, (float32_t *)data2);
+//	 arm_mat_init_f32(&u1, 1, 1000, (float32_t *)test3);
+//	
+//	//compute mean and center the matrix. 
+//	//arm_mean_f32((float32_t *)data1, 1600, &mean_m1);
+//	//arm_max_f32((float32_t *)data2, 1600, &mean_m2, (uint32_t *)&mean_m1);
+//	
+//	arm_mat_add_f32(&m1, &m2, &u1); 
+
+//	
+//}
 
 /**
   * @brief System Clock Configuration
@@ -427,23 +439,23 @@ static void MX_DAC1_Init(void)
 }
 
 /* QUADSPI init function */
-static void MX_QUADSPI_Init(void)
-{
+//static void MX_QUADSPI_Init(void)
+//{
 
-  /* QUADSPI parameter configuration*/
-  hqspi.Instance = QUADSPI;
-  hqspi.Init.ClockPrescaler = 255;
-  hqspi.Init.FifoThreshold = 1;
-  hqspi.Init.SampleShifting = QSPI_SAMPLE_SHIFTING_NONE;
-  hqspi.Init.FlashSize = 1;
-  hqspi.Init.ChipSelectHighTime = QSPI_CS_HIGH_TIME_1_CYCLE;
-  hqspi.Init.ClockMode = QSPI_CLOCK_MODE_0;
-  if (HAL_QSPI_Init(&hqspi) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
+//  /* QUADSPI parameter configuration*/
+//  hqspi.Instance = QUADSPI;
+//  hqspi.Init.ClockPrescaler = 255;
+//  hqspi.Init.FifoThreshold = 1;
+//  hqspi.Init.SampleShifting = QSPI_SAMPLE_SHIFTING_NONE;
+//  hqspi.Init.FlashSize = 1;
+//  hqspi.Init.ChipSelectHighTime = QSPI_CS_HIGH_TIME_1_CYCLE;
+//  hqspi.Init.ClockMode = QSPI_CLOCK_MODE_0;
+//  if (HAL_QSPI_Init(&hqspi) != HAL_OK)
+//  {
+//    _Error_Handler(__FILE__, __LINE__);
+//  }
 
-}
+//}
 /* DFSDM1 init function */
 static void MX_DFSDM1_Init(void)
 {
