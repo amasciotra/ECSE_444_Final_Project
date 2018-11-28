@@ -93,7 +93,7 @@ float32_t sine_sample2;
 
 int b;
 int i;
-float a11 = 0.2, a12 = 0.3, a21= 0.5, a22 = 0.1;
+float a11 = 0.3, a12 = 0.4, a21= 0.2, a22 = 0.1;
 uint8_t x1, x2;
 
 arm_status ret; 
