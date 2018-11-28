@@ -8,7 +8,6 @@ seriallist
 f=serial(seriallist, 'BaudRate', 115200, 'InputBufferSize', 16000);
 
 fopen(f);
-pause(50);
 temp = zeros(1,16000);
 temp2 = zeros(1,16000);
 
