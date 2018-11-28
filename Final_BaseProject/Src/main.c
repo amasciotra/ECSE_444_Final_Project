@@ -73,6 +73,9 @@ osThreadId defaultTaskHandle;
 /* Private variables ---------------------------------------------------------*/
 int tim3_flag = 0;
 int flag = 0;
+int full =0;
+int pass = 0;
+int offset = 1600;
 uint8_t data;
 uint8_t data2;
 
@@ -90,6 +93,9 @@ float32_t angle2;
 float32_t sine_sample;
 float32_t sine_sample2;
 
+float32_t sine1;
+float32_t sine2;
+
 int b;
 int i;
 float a11 = 0.3, a12 = 0.4, a21= 0.2, a22 = 0.1;
@@ -100,13 +106,16 @@ arm_status ret;
 //fast ica matrix variables 
 arm_matrix_instance_f32 m1;  //mixted signal 1 
 arm_matrix_instance_f32 m2;  //mixted signal 2 
-arm_matrix_instance_f32 u1;  // unmixted signal 1
-arm_matrix_instance_f32 u2;  // unmixed signal 2 
+arm_matrix_instance_f32 u2;  // unmixed signal 2 arm_matrix_instance_f32 u1;  // unmixted signal 1
+
 float32_t mean_m1;
 float32_t mean_m2;
 
- uint8_t test1 [1000]; 
- uint8_t test2 [1000]; 
+
+float32_t x1mem[1600];
+float32_t x2mem[1600];
+
+
 
 /* USER CODE END PV */
 
@@ -242,24 +251,10 @@ int main(void)
 		
 		data = (uint8_t)sine_sample;
 		data2 = (uint8_t)sine_sample2;
+		BSP_QSPI_Write(&data, i, 1);
+		BSP_QSPI_Write(&data2, i+(sampling_time), 1);
 
-		
-		
-		HAL_UART_Transmit(&huart1,&data, 1, 30000);
-		HAL_UART_Transmit(&huart1, &data2, 1, 30000);
-		
 	}
-	for(i = 0; i < sampling_time; i++){
-		
-		
-		HAL_UART_Receive(&huart1,&x1, 1, 3000000);
-		HAL_UART_Receive(&huart1, &x2, 1, 3000000);
-		BSP_QSPI_Write(&x1, i, 1);
-		BSP_QSPI_Write(&x2, i+(sampling_time), 1);
-		
-	}
-	
-	
 	
 	
 
@@ -267,25 +262,62 @@ int main(void)
   {
   /* USER CODE END WHILE */
 		
- 
-		// If interrupted by systick
 
-			if(flag == 1 ){
-			flag =0;
-			
-			if(sample_time == 16000){
-				sample_time = 0;
-			}
-			
-			BSP_QSPI_Read(&receive_sigc4,sample_time,1);
-			BSP_QSPI_Read(&receive_sigg4,sample_time + 16000, 1);
-	
-			HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R, receive_sigc4);
-			HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_8B_R, receive_sigg4);
-			sample_time++;
+		// If interrupted by systick
+	int i;
+		if( pass < 10){
+			for (i = 0; i< 1600; i++){
+				BSP_QSPI_Read(&receive_sigc4,(offset * pass )+ i,1);
+				BSP_QSPI_Read(&receive_sigg4,(offset * pass )+ i + 16000, 1);
+				sine1 = (receive_sigc4+1.0);
 		
+				sine1 = sine1* 2.0;
+			
+				sine1 = sine1/ 256.0;
+				
+				sine1 = ((receive_sigc4+1.0) * 2.0 / 256.0) - 1.0;
+				sine2 = ((receive_sigg4+1.0) * 2.0 / 256.0) - 1.0;
+				x1mem[i] = sine1;
+				x2mem[i] = sine2;
 		}
 			
+		// compute the mean of each signal 
+		 arm_mean_f32(x1mem, 1600, &mean_m1);
+		 arm_mean_f32(x2mem, 1600, &mean_m2);
+		
+		
+		//centralize each signal 
+		for(i = 0; i < 1600; i++){
+			x1mem[i] = x1mem[i] - mean_m1;
+			x2mem[i] = x2mem[i] - mean_m2;
+		}
+		
+		arm_mat_init_f32(&m1, 1, 1600, x1mem); 
+		arm_mat_init_f32(&m2, 1, 1600, x2mem);
+		
+		x2mem[i] = x2mem[i] - mean_m2;
+	}
+		pass++;		
+		
+		
+		
+		
+//			if(flag == 1 ){
+//			flag =0;
+//			
+//			if(sample_time == 16000){
+//				sample_time = 0;
+//			}
+//			
+//			BSP_QSPI_Read(&receive_sigc4,sample_time,1);
+//			BSP_QSPI_Read(&receive_sigg4,sample_time + 16000, 1);
+//	
+//			HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R, receive_sigc4);
+//			HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_8B_R, receive_sigg4);
+//			sample_time++;
+//		
+//		}
+//			
 			
 			
 		
