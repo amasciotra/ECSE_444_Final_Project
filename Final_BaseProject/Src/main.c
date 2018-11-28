@@ -88,6 +88,16 @@ int i;
 float a11 = 0.5, a12 = 0.5, a21= 0.5, a22 = 0.5;
 uint8_t x1, x2;
 
+uint8_t arr [4] = {1, 2, 3, 4}; 
+uint8_t arr2 [4] = {4, 3, 2, 1}; 
+
+float32_t g1[4];
+float32_t g2[4];
+
+float32_t x1[1600];
+float32_t x2[1600];
+
+
 
 //fast ica matrix variables 
 arm_matrix_instance_f32 m1;  //mixted signal 1 
@@ -167,7 +177,7 @@ int main(void)
 	HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
 	
 	BSP_QSPI_Init();   // init the qspi memory
-	BSP_QSPI_Erase_Chip();
+	//BSP_QSPI_Erase_Chip();
  
  /* USER CODE END 2 */
 
@@ -205,67 +215,97 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 	// Store sine wave samples in flash mem starting from address 0x00
-	for(i = 0; i < sampling_time*2; i++){
-		
-		// Compute value for the angle and compute sine wave sample
-		angle = 2 * PI *freqc4*(i/sampling_time);///sampling_time);
-		
-		sine_sample = arm_sin_f32(angle);
-		
-		// Shift value of angle to get only positives
-		sine_sample = sine_sample + 1;
-		// Map to 8bits by multiply by 2048, subtract 1
-		sine_sample = ((sine_sample * 256/2) - 1);
-		data = sine_sample;
-		BSP_QSPI_Write(&data, i, 1);
-		
-	}
-	for(i = 0; i < sampling_time*2; i++){
-		
-		// Compute value for the angle and compute sine wave sample
-		angle = 2 * PI *freqg4*(i/sampling_time);///sampling_time);
-		
-		sine_sample = arm_sin_f32(angle);
-		
-		// Shift value of angle to get only positives
-		sine_sample = sine_sample + 1;
-		// Map to 12bits by multiply by 2048, subtract 1
-		sine_sample = ((sine_sample * 256/2) - 1);
-		data = sine_sample;
-		BSP_QSPI_Write(&data, i+(sampling_time*2), 1);
-		
-	}
-	
+//	for(i = 0; i < sampling_time*2; i++){
+//		
+//		// Compute value for the angle and compute sine wave sample
+//		angle = 2 * PI *freqc4*(i/sampling_time);///sampling_time);
+//		
+//		sine_sample = arm_sin_f32(angle);
+//		
+//		// Shift value of angle to get only positives
+//		sine_sample = sine_sample + 1;
+//		// Map to 8bits by multiply by 2048, subtract 1
+//		sine_sample = ((sine_sample * 256/2) - 1);
+//		data = sine_sample;
+//		BSP_QSPI_Write(&data, i, 1);
+//		
+//	}
+//	for(i = 0; i < sampling_time*2; i++){
+//		
+//		// Compute value for the angle and compute sine wave sample
+//		angle = 2 * PI *freqg4*(i/sampling_time);///sampling_time);
+//		
+//		sine_sample = arm_sin_f32(angle);
+//		
+//		// Shift value of angle to get only positives
+//		sine_sample = sine_sample + 1;
+//		// Map to 12bits by multiply by 2048, subtract 1
+//		sine_sample = ((sine_sample * 256/2) - 1);
+//		data = sine_sample;
+//		BSP_QSPI_Write(&data, i+(sampling_time*2), 1);
+//		
+//	}
+//	
 	while (1)
   {
   /* USER CODE END WHILE */
+		g1[0] = arr[0]; 
+		g1[1] = arr[1]; 
+		g1[2] = arr[2]; 
+		g1[3] = arr[3]; 
+		
+		g2[0] = arr2[0]; 
+		g2[1] = arr2[1]; 
+		g2[2] = arr2[2]; 
+		g2[3] = arr2[3]; 
+	 
+
+		
+	 arm_mat_init_f32(&m1, 1, 4, g1);
+	 arm_mat_init_f32(&m2, 1, 4, g2);
+		
+	 arm_mean_f32(g1, 4, &mean_m1);
+		
+	
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
 		
 		// If interrupted by systick
-		if(flag == 1){
-			flag =0;
-			
-			if(sample_time - 1 == sampling_time*2){
-				sample_time = 0;
-			}
-			
-				
-				BSP_QSPI_Read(&receive_sigc4,sample_time,1);
-				BSP_QSPI_Read(&receive_sigg4,sample_time + 32000, 1);
-				// Write that value to the DAC
-			
-			
-				x1 = a11*receive_sigc4 + a12*receive_sigg4;
-				x2 = a21*receive_sigc4 + a22*receive_sigg4;
-				HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R, x1);
-				HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_8B_R, x2);
-				sample_time++;
-			
-		  //BSP_QSPI_Read(&testreceive , 0x90000000, 1);
-		
-		}
-		
-		
-		
+//		if(flag == 1){
+//			flag =0;
+//			
+//			if(sample_time - 1 == sampling_time*2){
+//				sample_time = 0;
+//			}
+//			
+//				
+//				BSP_QSPI_Read(&receive_sigc4,sample_time,1);
+//				BSP_QSPI_Read(&receive_sigg4,sample_time + 32000, 1);
+//				// Write that value to the DAC
+//			
+//			
+//				x1 = a11*receive_sigc4 + a12*receive_sigg4;
+//				x2 = a21*receive_sigc4 + a22*receive_sigg4;
+//				HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R, x1);
+//				HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_8B_R, x2);
+//				sample_time++;
+//			
+//		  //BSP_QSPI_Read(&testreceive , 0x90000000, 1);
+//		
+//		}
+//		
+	
   /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -282,10 +322,7 @@ uint8_t * fast_ica(uint8_t * data1, uint8_t * data2){
 	//compute mean and center the matrix. 
 	arm_mean_f32((float32_t *)data1, 1600, &mean_m1);
 	arm_mean_f32((float32_t *)data2, 1600, &mean_m1);
-	
-	
-	
-	
+
 }
 
 /**
