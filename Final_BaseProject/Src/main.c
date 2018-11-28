@@ -73,7 +73,6 @@ osThreadId defaultTaskHandle;
 /* Private variables ---------------------------------------------------------*/
 int tim3_flag = 0;
 int flag = 0;
-int uart_flag = 0;
 uint8_t data;
 uint8_t data2;
 
@@ -180,7 +179,7 @@ int main(void)
 	
 	BSP_QSPI_Init();   // init the qspi memory
 	
-	//BSP_QSPI_Erase_Chip();
+	BSP_QSPI_Erase_Chip();
  
  /* USER CODE END 2 */
 
@@ -227,64 +226,69 @@ int main(void)
 		sine_sample = arm_sin_f32(angle);
 		sine_sample2 =arm_sin_f32(angle2);
 		
+		
+		
+		sine_sample = a11*sine_sample + a12*sine_sample2;	
+		sine_sample2 = a21*sine_sample + a22*sine_sample2;
+		
+		
 		// Shift value of angle to get only positives
-		sine_sample = sine_sample + 1;
+		sine_sample= sine_sample + 1;
 		sine_sample2 = sine_sample2 + 1; 
 		
 		// Map to 12bits by multiply by 2048, subtract 1
 		sine_sample = ((sine_sample * 256/2) - 1);
 		sine_sample2 = ((sine_sample2 * 256/2) - 1);
 		
-		data = sine_sample;
-		data2 = sine_sample2;
+		data = (uint8_t)sine_sample;
+		data2 = (uint8_t)sine_sample2;
 
-		x1 = a11*data + a12*data2;	
-		x2 = a21*data + a22*data2;
 		
-		HAL_UART_Transmit(&huart1,&x1, 1, 30000);
-		HAL_UART_Transmit(&huart1, &x2, 1, 30000);
-		//BSP_QSPI_Write(&data, i, 1);
-		//BSP_QSPI_Write(&data2, i+(sampling_time), 1);
+		
+		HAL_UART_Transmit(&huart1,&data, 1, 30000);
+		HAL_UART_Transmit(&huart1, &data2, 1, 30000);
 		
 	}
+	for(i = 0; i < sampling_time; i++){
+		
+		
+		HAL_UART_Receive(&huart1,&x1, 1, 3000000);
+		HAL_UART_Receive(&huart1, &x2, 1, 3000000);
+		BSP_QSPI_Write(&x1, i, 1);
+		BSP_QSPI_Write(&x2, i+(sampling_time), 1);
+		
+	}
+	
+	
+	
+	
 
 	while (1)
   {
   /* USER CODE END WHILE */
 		
  
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
 		// If interrupted by systick
-		if(uart_flag == 1){
-			
+
 			if(flag == 1 ){
 			flag =0;
 			
-			if(sample_time == 1600){
+			if(sample_time == 16000){
 				sample_time = 0;
 			}
 			
 			BSP_QSPI_Read(&receive_sigc4,sample_time,1);
-			BSP_QSPI_Read(&receive_sigg4,sample_time + 32000, 1);
-			
-			HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R, x1);
-			HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_8B_R, x2);
+			BSP_QSPI_Read(&receive_sigg4,sample_time + 16000, 1);
+	
+			HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R, receive_sigc4);
+			HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_8B_R, receive_sigg4);
 			sample_time++;
 		
 		}
 			
 			
 			
-		}
+		
 		
 		
   /* USER CODE BEGIN 3 */
