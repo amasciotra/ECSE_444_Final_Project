@@ -90,6 +90,8 @@ uint8_t x1, x2;
 
 // 0x90000000 to 0x9FFFFFFF
 __IO uint8_t* qspi_base_address = (__IO uint8_t*) 0x90000000;
+__IO uint8_t* flash_base_address = (__IO uint8_t*) FLASH_BASE;
+
 uint8_t testes, testes2;
 /* USER CODE END PV */
 
@@ -161,7 +163,7 @@ int main(void)
 	HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
 	
 	BSP_QSPI_Init();   // init the qspi memory
-	BSP_QSPI_Erase_Chip();
+	//BSP_QSPI_Erase_Chip();
  
  /* USER CODE END 2 */
 
@@ -229,6 +231,12 @@ int main(void)
 		BSP_QSPI_Write(&data, i+(sampling_time*2), 1);
 		
 	}
+	HAL_FLASH_Unlock();
+	for(i = 0; i < 10; i++){
+		test = i;
+		*(flash_base_address + i) = i;
+	}
+	HAL_FLASH_Lock();
 	BSP_QSPI_EnableMemoryMappedMode();
 	
 	while (1)
@@ -517,7 +525,13 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void clear_flash(){
+	
+}
 
+void write_flash(uint8_t data, uint8_t * address){
+	
+}
 /* USER CODE END 4 */
 
 /* StartDefaultTask function */
