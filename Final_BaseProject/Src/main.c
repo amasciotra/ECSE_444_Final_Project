@@ -73,27 +73,27 @@ osThreadId defaultTaskHandle;
 /* Private variables ---------------------------------------------------------*/
 int tim3_flag = 0;
 int flag = 0;
-uint8_t data;
-uint8_t data2;
+uint8_t data; //to send sine samples over uart
+uint8_t data2; // to send sine samples over uart
 
-int freqc4 = 261; //frequency of the sine wave 
-int freqg4 = 392;
-int sample_time;
+int freqc4 = 261; //frequency of the first sine wave 
+int freqg4 = 392; // frequency of the second sine wave
+int sample_time; //to read from memory and write to dac every interrupt until 16000
 uint8_t test = 8;
-uint8_t receive_sigc4;
-uint8_t receive_sigg4;
-float32_t sampling_time = 16000;
+uint8_t receive_sigc4; //to store sample from memory and write to dac
+uint8_t receive_sigg4; //to store sample from memory and write to dac
+float32_t sampling_time = 16000; //top limit of sine sample
 
-float32_t angle;
-float32_t angle2;
+float32_t angle;  //to hold the angle that will be inputted to cmsis sine function
+float32_t angle2; //to hold the angle that will be inputted to cmsis sine function
 
-float32_t sine_sample;
-float32_t sine_sample2;
+float32_t sine_sample; //hold the mixed single value
+float32_t sine_sample2; //hold the second mixed single value
 
 int b;
 int i;
-float a11 = 0.3, a12 = 0.4, a21= 0.2, a22 = 0.1;
-uint8_t x1, x2;
+float a11 = 0.3, a12 = 0.4, a21= 0.2, a22 = 0.1; //A matrix to mix the signals
+uint8_t x1, x2; //to read back from matlab and store in write to memory
 int buttonState;
 
 arm_status ret; 
@@ -227,46 +227,52 @@ int main(void)
 	}
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
 	
-	// Store sine wave samples in flash mem starting from address 0x00
+	// create both sine wave samples and send them over uart 
 	for(i = 0; i < sampling_time; i++){
 		
 		// Compute value for the angle and compute sine wave sample
 		angle = 2 * PI *freqc4*(i/sampling_time);///sampling_time);
 		angle2 = 2 * PI *freqg4*(i/sampling_time);///sampling_time)
 		
+		//computes the sine wave sample
 		sine_sample = arm_sin_f32(angle);
 		sine_sample2 =arm_sin_f32(angle2);
 		
 		
-		
+		//mixing signals together
 		sine_sample = a11*sine_sample + a12*sine_sample2;	
 		sine_sample2 = a21*sine_sample + a22*sine_sample2;
 		
 		
-		// Shift value of angle to get only positives
+		// Shift value of sample to get only positives
 		sine_sample= sine_sample + 1;
 		sine_sample2 = sine_sample2 + 1; 
 		
-		// Map to 12bits by multiply by 2048, subtract 1
+		// Map to 8bits by multiply by 128, subtract 1
 		sine_sample = ((sine_sample * 256/2) - 1);
 		sine_sample2 = ((sine_sample2 * 256/2) - 1);
 		
+		//convert from float to int to send over UART
 		data = (uint8_t)sine_sample;
 		data2 = (uint8_t)sine_sample2;
 
 		
-		
+		//send over uart
 		HAL_UART_Transmit(&huart1,&data, 1, 30000);
 		HAL_UART_Transmit(&huart1, &data2, 1, 30000);
 		
 	}
+	
+	//receiving separated signals back from matlab, each sample at a time
 	for(i = 0; i < sampling_time; i++){
 		
-		
+		//storing new samples in x1 and x2
 		HAL_UART_Receive(&huart1,&x1, 1, 3000000);
 		HAL_UART_Receive(&huart1, &x2, 1, 3000000);
+		
+		//write separated signals to memory
 		BSP_QSPI_Write(&x1, i, 1);
-		BSP_QSPI_Write(&x2, i+(sampling_time), 1);
+		BSP_QSPI_Write(&x2, i+(sampling_time), 1); //offset by 16000
 		
 	}
 	
@@ -279,7 +285,7 @@ int main(void)
   /* USER CODE END WHILE */
 		
  
-		// If interrupted by systick
+		// If interrupted by systick, increment sample time, read from memory and write to dac
 
 			if(flag == 1 ){
 			flag =0;
@@ -288,6 +294,7 @@ int main(void)
 				sample_time = 0;
 			}
 			
+			//read from signal and write to dac
 			BSP_QSPI_Read(&receive_sigc4,sample_time,1);
 			BSP_QSPI_Read(&receive_sigg4,sample_time + 16000, 1);
 	
