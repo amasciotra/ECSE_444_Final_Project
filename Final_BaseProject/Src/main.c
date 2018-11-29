@@ -100,33 +100,39 @@ int b;
 int i;
 float a11 = 0.3, a12 = 0.4, a21= 0.2, a22 = 0.1;
 uint8_t x1, x2;
-float32_t eigen[4];
+
 
 arm_status ret; 
 
 //fast ica matrix variables 
-arm_matrix_instance_f32 m1;  //mixted signal 1 
-arm_matrix_instance_f32 m2;  //mixted signal 2 
-arm_matrix_instance_f32 trans;  
+arm_matrix_instance_f32 m1; 
+arm_matrix_instance_f32 m1_trans;  
 arm_matrix_instance_f32 covmat;  
 arm_matrix_instance_f32 eigenmat;  
 arm_matrix_instance_f32 eigvectmat;  
 arm_matrix_instance_f32 inv_eigen;  
-arm_matrix_instance_f32 trans_eigen;  
+arm_matrix_instance_f32 trans_eigen;
+arm_matrix_instance_f32 whiteningmat;
+arm_matrix_instance_f32 dewhiteningmat;
+arm_matrix_instance_f32 w_signals;
 
 float32_t mean_m1;
 float32_t mean_m2;
 
+//fast ical matrix buffers 
 float32_t xmat[3200];
-//float32_t x2mem[1600];
 float32_t x_c[2][1600];
-
+float32_t w_signalsbuff[3200];
 float32_t xtrans [3200];
-
 float32_t trans_ei[4];
 float32_t inv_ei[4];
+float32_t eigen[4];
 float32_t covbuff[4];
 float32_t eigenvectors[4];
+float32_t whiteningbuff[4];
+float32_t dewhiteningbuff[4];
+
+//float temp variables for computations 
 float32_t temp;
 float32_t temp2;
 float32_t temp3;
@@ -298,34 +304,35 @@ int main(void)
 		 arm_mean_f32(x_c[0], 1600, &mean_m1);
 		 arm_mean_f32(x_c[1], 1600, &mean_m2);
 		
-		
 		//centralize each signal 
 		for(i = 0; i < 1600; i++){
 			x_c[0][i] = x_c[0][i] - mean_m1;
 			x_c[1][i] = x_c[1][i] - mean_m2;
 		}
 		
+		//COncatenate the two signals to make a buffer of 32000 samples 
 		for(i = 0; i < 1600; i++){
 			xmat[i] = x_c[0][i];
-
-		}for(i = 0; i < 1600; i++){
+		}
+		for(i = 0; i < 1600; i++){
 			xmat[i+1600] = x_c[1][i];
-
 		}
 		
-		
 		// initialize a matrix for each signal 
-		arm_mat_init_f32(&m1, 2, 1600, xmat); 
-		arm_mat_init_f32(&trans, 1600, 2, xtrans); 
+		arm_mat_init_f32(&m1, 2, 1600, xmat);    //m1 is the 2x16000 matrix of mixed signals 
+		arm_mat_init_f32(&m1_trans, 1600, 2, xtrans);  //m1 transpose 
 		arm_mat_init_f32(&covmat, 2, 2, covbuff); 
 		arm_mat_init_f32(&inv_eigen, 2, 2, inv_ei); 
 		arm_mat_init_f32(&trans_eigen, 2, 2, trans_ei); 
+		arm_mat_init_f32(&w_signals, 2, 1600, w_signalsbuff); 
+		arm_mat_init_f32(&whiteningmat, 2, 2, whiteningbuff); 
+		arm_mat_init_f32(&dewhiteningmat, 2, 2, dewhiteningbuff); 
 		
 		//transpose the matrix 
-		arm_mat_trans_f32(&m1, &trans); 
+		arm_mat_trans_f32(&m1, &m1_trans); 
 	
 		//compute covariance matrix
-		arm_mat_mult_f32(&m1, &trans, &covmat); 
+		arm_mat_mult_f32(&m1, &m1_trans, &covmat); 
 		arm_mat_scale_f32(&covmat, (1.0/1599.0), &covmat); 
 		
 		// compute eigen values
@@ -334,11 +341,9 @@ int main(void)
 		temp = temp - temp2;		
 		temp2 = (covmat.pData[0]+covmat.pData[3]);
 		arm_sqrt_f32(temp,&temp);
-		
-		//eigenvalues 
-		eigen[0] = (temp2-temp )/2;
-		eigen[3] = (temp2+temp )/2;
-		arm_mat_init_f32(&eigenmat, 2, 2, eigen); 
+		eigen[0] = (temp2-temp )/2;  //first eigenvalue 
+		eigen[3] = (temp2+temp )/2;  //second eigenvalue
+		arm_mat_init_f32(&eigenmat, 2, 2, eigen); //initialize a 2 by 2 eigevalue matrix 
 		
 		//eigenvectors 
 		eigenvectors[2] = (covmat.pData[3]-eigen[0])-(covmat.pData[2]*covmat.pData[1]/(covmat.pData[0]-eigen[0]));
@@ -349,18 +354,22 @@ int main(void)
 		arm_mat_init_f32(&eigvectmat, 2, 2, eigenvectors); 
 		
 		//whitening the signals 
-		//sqrt of eigenvalues 
-		arm_sqrt_f32(eigenmat.pData[0],&eigenmat.pData[0]);
-		arm_sqrt_f32(eigenmat.pData[3],&eigenmat.pData[3]);
-		arm_mat_inverse_f32(&eigenmat,&inv_eigen);
+		arm_sqrt_f32(eigenmat.pData[0],&eigenmat.pData[0]); //square root the eigenvalues 
+		arm_sqrt_f32(eigenmat.pData[3],&eigenmat.pData[3]); //square root the eigevalues 
+		arm_mat_inverse_f32(&eigenmat,&inv_eigen);        //inverse of eigenvectors squared
+		arm_mat_trans_f32(&eigvectmat, &trans_eigen); 		//transpose eigenvectors matrix 
 		
-		//transpose eigenvectors matrix 
-		arm_mat_trans_f32(&eigvectmat, &trans_eigen); 
+		arm_mat_mult_f32(&inv_eigen, &trans_eigen, &whiteningmat); //whitening matrix
+		arm_mat_mult_f32(&eigvectmat, &eigenmat, &dewhiteningmat); //dewhitening matrix
+		
+		//multiply the whitening matix and the mixed signals 
+		arm_mat_mult_f32(&whiteningmat, &m1, &w_signals); //dewhitening matrix
 		
 		
-		arm_mat_scale_f32(&covmat, (1.0/1599.0), &covmat); 
 		
-
+		
+		arm_mat_mult_f32(&eigvectmat, &eigenmat, &dewhiteningmat); //dewhitening matrix
+	
 		
 
 	}
