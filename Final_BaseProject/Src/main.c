@@ -100,23 +100,36 @@ int b;
 int i;
 float a11 = 0.3, a12 = 0.4, a21= 0.2, a22 = 0.1;
 uint8_t x1, x2;
+float32_t eigen[4];
 
 arm_status ret; 
 
 //fast ica matrix variables 
 arm_matrix_instance_f32 m1;  //mixted signal 1 
 arm_matrix_instance_f32 m2;  //mixted signal 2 
-arm_matrix_instance_f32 u2;  // unmixed signal 2 arm_matrix_instance_f32 u1;  // unmixted signal 1
+arm_matrix_instance_f32 trans;  
+arm_matrix_instance_f32 covmat;  
+arm_matrix_instance_f32 eigenmat;  
+arm_matrix_instance_f32 eigvectmat;  
+arm_matrix_instance_f32 inv_eigen;  
+arm_matrix_instance_f32 trans_eigen;  
 
 float32_t mean_m1;
 float32_t mean_m2;
 
+float32_t xmat[3200];
+//float32_t x2mem[1600];
+float32_t x_c[2][1600];
 
-float32_t x1mem[1600];
-float32_t x2mem[1600];
+float32_t xtrans [3200];
 
-
-
+float32_t trans_ei[4];
+float32_t inv_ei[4];
+float32_t covbuff[4];
+float32_t eigenvectors[4];
+float32_t temp;
+float32_t temp2;
+float32_t temp3;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -188,7 +201,7 @@ int main(void)
 	
 	BSP_QSPI_Init();   // init the qspi memory
 	
-	BSP_QSPI_Erase_Chip();
+	//BSP_QSPI_Erase_Chip();
  
  /* USER CODE END 2 */
 
@@ -277,25 +290,79 @@ int main(void)
 				
 				sine1 = ((receive_sigc4+1.0) * 2.0 / 256.0) - 1.0;
 				sine2 = ((receive_sigg4+1.0) * 2.0 / 256.0) - 1.0;
-				x1mem[i] = sine1;
-				x2mem[i] = sine2;
+				x_c[0][i] = sine1;
+				x_c[1][i] = sine2;
 		}
 			
 		// compute the mean of each signal 
-		 arm_mean_f32(x1mem, 1600, &mean_m1);
-		 arm_mean_f32(x2mem, 1600, &mean_m2);
+		 arm_mean_f32(x_c[0], 1600, &mean_m1);
+		 arm_mean_f32(x_c[1], 1600, &mean_m2);
 		
 		
 		//centralize each signal 
 		for(i = 0; i < 1600; i++){
-			x1mem[i] = x1mem[i] - mean_m1;
-			x2mem[i] = x2mem[i] - mean_m2;
+			x_c[0][i] = x_c[0][i] - mean_m1;
+			x_c[1][i] = x_c[1][i] - mean_m2;
 		}
 		
-		arm_mat_init_f32(&m1, 1, 1600, x1mem); 
-		arm_mat_init_f32(&m2, 1, 1600, x2mem);
+		for(i = 0; i < 1600; i++){
+			xmat[i] = x_c[0][i];
+
+		}for(i = 0; i < 1600; i++){
+			xmat[i+1600] = x_c[1][i];
+
+		}
 		
-		x2mem[i] = x2mem[i] - mean_m2;
+		
+		// initialize a matrix for each signal 
+		arm_mat_init_f32(&m1, 2, 1600, xmat); 
+		arm_mat_init_f32(&trans, 1600, 2, xtrans); 
+		arm_mat_init_f32(&covmat, 2, 2, covbuff); 
+		arm_mat_init_f32(&inv_eigen, 2, 2, inv_ei); 
+		arm_mat_init_f32(&trans_eigen, 2, 2, trans_ei); 
+		
+		//transpose the matrix 
+		arm_mat_trans_f32(&m1, &trans); 
+	
+		//compute covariance matrix
+		arm_mat_mult_f32(&m1, &trans, &covmat); 
+		arm_mat_scale_f32(&covmat, (1.0/1599.0), &covmat); 
+		
+		// compute eigen values
+		temp = (((-1.0)*(covmat.pData[0]+covmat.pData[3]))*((-1.0)*(covmat.pData[0]+covmat.pData[3])));		
+		temp2 = 4.0*(covmat.pData[0]*covmat.pData[3] - covmat.pData[2]*covmat.pData[1]);
+		temp = temp - temp2;		
+		temp2 = (covmat.pData[0]+covmat.pData[3]);
+		arm_sqrt_f32(temp,&temp);
+		
+		//eigenvalues 
+		eigen[0] = (temp2-temp )/2;
+		eigen[3] = (temp2+temp )/2;
+		arm_mat_init_f32(&eigenmat, 2, 2, eigen); 
+		
+		//eigenvectors 
+		eigenvectors[2] = (covmat.pData[3]-eigen[0])-(covmat.pData[2]*covmat.pData[1]/(covmat.pData[0]-eigen[0]));
+		eigenvectors[0] =  (-1*covmat.pData[1]*eigenvectors[2])/(covmat.pData[0]-eigen[0]);
+		eigenvectors[3] = (covmat.pData[3]-eigen[3])-(covmat.pData[2]*covmat.pData[1]/(covmat.pData[0]-eigen[3]));
+		eigenvectors[1] =  (-1*covmat.pData[1]*eigenvectors[3])/(covmat.pData[0]-eigen[3]);
+		//matrix 
+		arm_mat_init_f32(&eigvectmat, 2, 2, eigenvectors); 
+		
+		//whitening the signals 
+		//sqrt of eigenvalues 
+		arm_sqrt_f32(eigenmat.pData[0],&eigenmat.pData[0]);
+		arm_sqrt_f32(eigenmat.pData[3],&eigenmat.pData[3]);
+		arm_mat_inverse_f32(&eigenmat,&inv_eigen);
+		
+		//transpose eigenvectors matrix 
+		arm_mat_trans_f32(&eigvectmat, &trans_eigen); 
+		
+		
+		arm_mat_scale_f32(&covmat, (1.0/1599.0), &covmat); 
+		
+
+		
+
 	}
 		pass++;		
 		

@@ -28,15 +28,17 @@ Project File Date:  11/12/2018
 *** Using Compiler 'V5.06 update 6 (build 750)', folder: 'C:\School Programs\Keil_v5\ARM\ARMCC\Bin'
 Build target 'GXX_Project'
 compiling main.c...
-../Src/main.c(274): warning:  #1035-D: single-precision operand implicitly converted to double-precision
+../Src/main.c(287): warning:  #1035-D: single-precision operand implicitly converted to double-precision
   				sine1 = sine1* 2.0;
-../Src/main.c(276): warning:  #1035-D: single-precision operand implicitly converted to double-precision
+../Src/main.c(289): warning:  #1035-D: single-precision operand implicitly converted to double-precision
   				sine1 = sine1/ 256.0;
-../Src/main.c: 2 warnings, 0 errors
+../Src/main.c(333): warning:  #1035-D: single-precision operand implicitly converted to double-precision
+  		temp2 = 4.0*(covmat.pData[0]*covmat.pData[3] - covmat.pData[2]*covmat.pData[1]);
+../Src/main.c: 3 warnings, 0 errors
 linking...
-Program Size: Code=15056 RO-data=2548 RW-data=176 ZI-data=14720  
+Program Size: Code=17672 RO-data=2548 RW-data=224 ZI-data=40400  
 FromELF: creating hex file...
-"GXX_Project\GXX_Project.axf" - 0 Error(s), 2 Warning(s).
+"GXX_Project\GXX_Project.axf" - 0 Error(s), 3 Warning(s).
 
 <h2>Software Packages used:</h2>
 
