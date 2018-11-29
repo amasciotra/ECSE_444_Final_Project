@@ -231,8 +231,8 @@ int main(void)
 	for(i = 0; i < sampling_time; i++){
 		
 		// Compute value for the angle and compute sine wave sample
-		angle = 2 * PI *freqc4*(i/sampling_time);///sampling_time);
-		angle2 = 2 * PI *freqg4*(i/sampling_time);///sampling_time)
+		angle = 2 * PI *freqc4*(i/sampling_time);
+		angle2 = 2 * PI *freqg4*(i/sampling_time);
 		
 		//computes the sine wave sample
 		sine_sample = arm_sin_f32(angle);
@@ -249,8 +249,8 @@ int main(void)
 		sine_sample2 = sine_sample2 + 1; 
 		
 		// Map to 8bits by multiply by 128, subtract 1
-		sine_sample = ((sine_sample * 256/2) - 1);
-		sine_sample2 = ((sine_sample2 * 256/2) - 1);
+		sine_sample = ((sine_sample * 255/2));
+		sine_sample2 = ((sine_sample2 * 255/2));
 		
 		//convert from float to int to send over UART
 		data = (uint8_t)sine_sample;
@@ -283,8 +283,7 @@ int main(void)
 	while (1)
   {
   /* USER CODE END WHILE */
-		
- 
+	
 		// If interrupted by systick, increment sample time, read from memory and write to dac
 
 			if(flag == 1 ){
