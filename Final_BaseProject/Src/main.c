@@ -256,7 +256,6 @@ int main(void)
 		data = (uint8_t)sine_sample;
 		data2 = (uint8_t)sine_sample2;
 
-		
 		//send over uart
 		HAL_UART_Transmit(&huart1,&data, 1, 30000);
 		HAL_UART_Transmit(&huart1, &data2, 1, 30000);
@@ -273,7 +272,6 @@ int main(void)
 		//write separated signals to memory
 		BSP_QSPI_Write(&x1, i, 1);
 		BSP_QSPI_Write(&x2, i+(sampling_time), 1); //offset by 16000
-		
 	}
 	
 	
